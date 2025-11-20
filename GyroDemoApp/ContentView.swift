@@ -1,6 +1,14 @@
 import SwiftUI
 import UIKit
 import AVFoundation
+import Combine
+
+struct Enemy: Identifiable {
+    let id = UUID()
+    var x: CGFloat
+    var y: CGFloat
+    var speed: CGFloat
+}
 
 struct ContentView: View {
     @StateObject private var motion = MotionManager()
@@ -14,7 +22,12 @@ struct ContentView: View {
     @State private var showingCamera = false
     
     // freeze flag
-    @State private var gameFrozen = false      // 👈 NEW
+    @State private var gameFrozen = false
+    
+    // enemies
+    @State private var enemies: [Enemy] = []
+    @State private var spawnCounter: Double = 0
+    private let enemyTimer = Timer.publish(every: 0.016, on: .main, in: .common).autoconnect()
     
     // object size
     private let objectSize: CGFloat = 60
@@ -89,7 +102,7 @@ struct ContentView: View {
             let sensitivityX = maxOffsetWidth / maxAngle
             let sensitivityY = maxOffsetHeight / maxAngle
             
-            // 👇 freeze movement when camera is open
+            // freeze movement when camera is open
             let effectiveSensitivityX = gameFrozen ? 0 : sensitivityX
             let effectiveSensitivityY = gameFrozen ? 0 : sensitivityY
             
@@ -117,6 +130,15 @@ struct ContentView: View {
                     .animation(.easeOut(duration: 0.15), value: hitEdge)
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
+                
+                // ENEMIES (red, falling)
+                ForEach(enemies) { enemy in
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 30, height: 30)
+                        .position(x: enemy.x, y: enemy.y)
+                        .allowsHitTesting(false)
+                }
                 
                 // VISIBLE OBJECT
                 Group {
@@ -150,23 +172,44 @@ struct ContentView: View {
                 loadSound()
             }
             .onChange(of: hitEdge) { _, newValue in
-                // 👇 no hit feedback while frozen
                 if newValue && !gameFrozen {
                     vibrateOnHit()
+                }
+            }
+            // enemy movement + spawn loop
+            .onReceive(enemyTimer) { _ in
+                guard !gameFrozen else { return }
+                
+                // move enemies down
+                enemies = enemies.map { enemy in
+                    var e = enemy
+                    e.y += e.speed
+                    return e
+                }
+                // remove those off-screen
+                .filter { $0.y < fullHeight + 40 }
+                
+                // spawn new enemies every ~0.8s
+                spawnCounter += 0.016
+                if spawnCounter >= 0.8 {
+                    spawnCounter = 0
+                    let xPos = CGFloat.random(in: 20...(fullWidth - 20))
+                    let speed = CGFloat.random(in: 2...5)
+                    let newEnemy = Enemy(x: xPos, y: -20, speed: speed)
+                    enemies.append(newEnemy)
                 }
             }
         }
         .sheet(isPresented: $showingCamera) {
             ImagePicker(image: $objectImage)
         }
-        // 👇 keep gameFrozen in sync with camera sheet
         .onChange(of: showingCamera) { _, newValue in
             gameFrozen = newValue
         }
     }
 }
 
-// ImagePicker stays the same as you have it
+// ImagePicker stays the same
 
 struct ImagePicker: UIViewControllerRepresentable {
     @Environment(\.dismiss) private var dismiss
