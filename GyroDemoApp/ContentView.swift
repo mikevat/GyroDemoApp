@@ -11,7 +11,6 @@ struct ContentView: View {
     private let maxAngle: Double = .pi / 9
     
     func ballColor(x: CGFloat, y: CGFloat, maxOffset: CGFloat) -> Color {
-        // distance from center
         let distance = sqrt(x*x + y*y)
         let t = min(distance / maxOffset, 1)
         
@@ -34,32 +33,46 @@ struct ContentView: View {
         let rawX = motion.roll * sensitivity
         let rawY = motion.pitch * sensitivity
         
-        // 👉 CLAMP THEM HERE
+        // clamp so ball never leaves the box
         let clampedX = clamp(rawX, maxOffset: maxOffset)
         let clampedY = clamp(rawY, maxOffset: maxOffset)
         
         let hitEdge = isAtEdge(x: clampedX, y: clampedY, maxOffset: maxOffset)
-
+        
+        // degrees just for display
+        let pitchDeg = motion.pitch * 180 / .pi
+        let rollDeg  = motion.roll  * 180 / .pi
+        
         VStack(spacing: 32) {
             Text("Gyro Demo")
                 .font(.largeTitle)
                 .bold()
             
-            let pitchDeg = motion.pitch * 180 / .pi
-            let rollDeg  = motion.roll  * 180 / .pi
-
-            VStack(spacing: 8) {
-                Text(String(format: "Pitch: %.0f°", pitchDeg))
-                Text(String(format: "Roll:  %.0f°", rollDeg))
+            // 🔹 Fixed-height area that swaps between "Ding!" and the degrees
+            ZStack {
+                // Ding text (shown only when at edge)
+                Text("Ding!")
+                    .font(.title)
+                    .bold()
+                    .foregroundStyle(.red)
+                    .opacity(hitEdge ? 1 : 0)
+                
+                // Degrees text (hidden when at edge)
+                VStack(spacing: 8) {
+                    Text(String(format: "Pitch: %.1f°", pitchDeg))
+                    Text(String(format: "Roll:  %.1f°", rollDeg))
+                }
+                .font(.title2)
+                .opacity(hitEdge ? 0 : 1)
             }
-            .font(.title2)
+            .frame(height: 60) // 👈 keeps layout stable, box won’t move
             
             ZStack {
                 Rectangle()
                     .frame(width: squareSize, height: squareSize)
                     .foregroundStyle(hitEdge ? Color.red.opacity(0.3) : Color.gray.opacity(0.1))
-                    .animation(.easeOut(duration: 0.15), value: hitEdge)
                     .border(Color.gray.opacity(0.7), width: 4)
+                    .animation(.easeOut(duration: 0.15), value: hitEdge)
 
                 Circle()
                     .frame(width: ballSize, height: ballSize)
