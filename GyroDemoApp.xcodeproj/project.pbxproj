@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		7D554D2B2ECF674A00A0475D /* ep.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7D554D2A2ECF674A00A0475D /* ep.m4a */; };
+		7D554D2C2ECF6AF100A0475D /* ep.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7D554D2A2ECF674A00A0475D /* ep.m4a */; };
+		7D554D2D2ECF6AF100A0475D /* ep.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7D554D2A2ECF674A00A0475D /* ep.m4a */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		7D758E1B2ECF3DBE00277C19 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +30,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		7D554D2A2ECF674A00A0475D /* ep.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = ep.m4a; sourceTree = "<group>"; };
 		7D758E0D2ECF3DBC00277C19 /* GyroDemoApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GyroDemoApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7D758E1A2ECF3DBE00277C19 /* GyroDemoAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GyroDemoAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7D758E242ECF3DBE00277C19 /* GyroDemoAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GyroDemoAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -75,6 +82,7 @@
 		7D758E042ECF3DBC00277C19 = {
 			isa = PBXGroup;
 			children = (
+				7D554D2A2ECF674A00A0475D /* ep.m4a */,
 				7D758E0F2ECF3DBC00277C19 /* GyroDemoApp */,
 				7D758E1D2ECF3DBE00277C19 /* GyroDemoAppTests */,
 				7D758E272ECF3DBE00277C19 /* GyroDemoAppUITests */,
@@ -212,6 +220,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7D554D2C2ECF6AF100A0475D /* ep.m4a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -219,6 +228,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7D554D2D2ECF6AF100A0475D /* ep.m4a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -226,6 +236,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7D554D2B2ECF674A00A0475D /* ep.m4a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

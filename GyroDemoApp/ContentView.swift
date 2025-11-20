@@ -1,17 +1,20 @@
 import SwiftUI
 import UIKit
-import AudioToolbox
 import AVFoundation
 
 struct ContentView: View {
     @StateObject private var motion = MotionManager()
+    
+    // 👇 store the sound URL and multiple active players
+    @State private var soundURL: URL?
+    @State private var activePlayers: [AVAudioPlayer] = []
     
     // sizes
     private let squareSize: CGFloat = 250
     private let ballSize: CGFloat = 60
     
     // 45 degrees in radians
-    private let maxAngle: Double = .pi / 12
+    private let maxAngle: Double = .pi / 18
     
     func ballColor(x: CGFloat, y: CGFloat, maxOffset: CGFloat) -> Color {
         let distance = sqrt(x*x + y*y)
@@ -26,29 +29,61 @@ struct ContentView: View {
             // in the last 20% → fade from green to red
             let localT = (t - dangerStart) / (1 - dangerStart)   // 0...1 in danger zone
             return Color(
-                red:   localT,        // goes to 1 at edge
-                green: 1 - localT,    // goes to 0 at edge
+                red:   localT,
+                green: 1 - localT,
                 blue:  0
             )
         }
     }
 
-
     func isAtEdge(x: CGFloat, y: CGFloat, maxOffset: CGFloat) -> Bool {
         abs(x) >= maxOffset || abs(y) >= maxOffset
     }
 
+    // 👇 load and remember only the URL; players will be created per hit
+    private func loadSound() {
+        guard let url = Bundle.main.url(forResource: "ep", withExtension: "m4a") else {
+            print("⚠️ Could not find ep.m4a in bundle")
+            return
+        }
+        
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setActive(true)
+            
+            soundURL = url
+            print("✅ Sound URL loaded: \(url.lastPathComponent)")
+        } catch {
+            print("⚠️ Error setting up audio session: \(error.localizedDescription)")
+        }
+    }
+
+    // 👇 creates a NEW player each time so sounds can overlap
+    private func playHitSound() {
+        guard let url = soundURL else {
+            print("⚠️ No sound URL")
+            return
+        }
+        
+        // clean up finished players
+        activePlayers = activePlayers.filter { $0.isPlaying }
+        
+        do {
+            let player = try AVAudioPlayer(contentsOf: url)
+            player.prepareToPlay()
+            player.play()
+            activePlayers.append(player)
+        } catch {
+            print("⚠️ Error creating player: \(error.localizedDescription)")
+        }
+    }
+
     private func vibrateOnHit() {
-        // heavy haptic
         let impact = UIImpactFeedbackGenerator(style: .heavy)
         impact.impactOccurred()
         
-        // activate audio session
-        try? AVAudioSession.sharedInstance().setCategory(.ambient)
-        try? AVAudioSession.sharedInstance().setActive(true)
-
-        // reliable system sound
-        AudioServicesPlaySystemSound(1106)
+        playHitSound()   // 👈 play overlapping sound
     }
 
     var body: some View {
@@ -59,7 +94,7 @@ struct ContentView: View {
         let rawX = motion.roll * sensitivity
         let rawY = motion.pitch * sensitivity
         
-        // clamp so ball never leaves the box
+        // clamp so plane never leaves the box
         let clampedX = clamp(rawX, maxOffset: maxOffset)
         let clampedY = clamp(rawY, maxOffset: maxOffset)
         
@@ -111,7 +146,6 @@ struct ContentView: View {
                             maxOffset: maxOffset
                         )
                     )
-                    // optional: tilt the plane with roll
                     .rotationEffect(.radians(motion.roll - .pi/2))
                     .offset(x: clampedX, y: clampedY)
                     .animation(.easeOut(duration: 0.1), value: motion.pitch)
@@ -119,11 +153,16 @@ struct ContentView: View {
             }
         }
         .padding()
-        // 👇 haptic on transition to "hitEdge == true"
-        .onChange(of: hitEdge) { _, newValue in
-            if newValue { vibrateOnHit() }
+        .onAppear {
+            loadSound()
+            // optional: quick test on launch
+            // playHitSound()
         }
-
+        .onChange(of: hitEdge) { _, newValue in
+            if newValue {
+                vibrateOnHit()
+            }
+        }
     }
 }
 
