@@ -125,9 +125,8 @@ struct ContentView: View {
             ZStack {
                 // FULL SCREEN BOX (not tappable)
                 Rectangle()
-                    .foregroundStyle(hitEdge ? Color.red.opacity(0.2) : Color.gray.opacity(0.1))
+                    .foregroundStyle(Color.gray.opacity(0.1))
                     .border(Color.gray.opacity(0.7), width: 4)
-                    .animation(.easeOut(duration: 0.15), value: hitEdge)
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
                 
