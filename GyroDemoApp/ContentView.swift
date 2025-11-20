@@ -5,42 +5,34 @@ import AVFoundation
 struct ContentView: View {
     @StateObject private var motion = MotionManager()
     
-    // 👇 store the sound URL and multiple active players
+    // sound handling
     @State private var soundURL: URL?
     @State private var activePlayers: [AVAudioPlayer] = []
     
-    // sizes
-    private let squareSize: CGFloat = 250
-    private let ballSize: CGFloat = 60
+    // moving object (airplane or captured photo)
+    @State private var objectImage: UIImage? = nil
+    @State private var showingCamera = false
+    
+    // object size
+    private let objectSize: CGFloat = 60
     
     // 45 degrees in radians
     private let maxAngle: Double = .pi / 18
     
+    func isAtEdge(x: CGFloat, y: CGFloat, maxOffsetWidth: CGFloat, maxOffsetHeight: CGFloat) -> Bool {
+        abs(x) >= maxOffsetWidth || abs(y) >= maxOffsetHeight
+    }
+    
     func ballColor(x: CGFloat, y: CGFloat, maxOffset: CGFloat) -> Color {
         let distance = sqrt(x*x + y*y)
-        let t = min(distance / maxOffset, 1)   // 0 = center, 1 = edge
-
-        let dangerStart: CGFloat = 0.8         // 80% of the way to the edge
-
-        if t < dangerStart {
-            // safely away from the wall → solid green
-            return .green
-        } else {
-            // in the last 20% → fade from green to red
-            let localT = (t - dangerStart) / (1 - dangerStart)   // 0...1 in danger zone
-            return Color(
-                red:   localT,
-                green: 1 - localT,
-                blue:  0
-            )
-        }
+        let t = min(distance / maxOffset, 1)
+        
+        if t < 0.9 { return .green }
+        
+        let localT = (t - 0.8) / 0.2
+        return Color(red: localT, green: 1 - localT, blue: 0)
     }
-
-    func isAtEdge(x: CGFloat, y: CGFloat, maxOffset: CGFloat) -> Bool {
-        abs(x) >= maxOffset || abs(y) >= maxOffset
-    }
-
-    // 👇 load and remember only the URL; players will be created per hit
+    
     private func loadSound() {
         guard let url = Bundle.main.url(forResource: "ep", withExtension: "m4a") else {
             print("⚠️ Could not find ep.m4a in bundle")
@@ -58,15 +50,13 @@ struct ContentView: View {
             print("⚠️ Error setting up audio session: \(error.localizedDescription)")
         }
     }
-
-    // 👇 creates a NEW player each time so sounds can overlap
+    
     private func playHitSound() {
         guard let url = soundURL else {
             print("⚠️ No sound URL")
             return
         }
         
-        // clean up finished players
         activePlayers = activePlayers.filter { $0.isPlaying }
         
         do {
@@ -78,95 +68,139 @@ struct ContentView: View {
             print("⚠️ Error creating player: \(error.localizedDescription)")
         }
     }
-
+    
     private func vibrateOnHit() {
         let impact = UIImpactFeedbackGenerator(style: .heavy)
         impact.impactOccurred()
-        
-        playHitSound()   // 👈 play overlapping sound
+        playHitSound()
     }
-
+    
     var body: some View {
-        let maxOffset = (squareSize - ballSize) / 2
-        
-        // raw offsets from gyro
-        let sensitivity = maxOffset / maxAngle
-        let rawX = motion.roll * sensitivity
-        let rawY = motion.pitch * sensitivity
-        
-        // clamp so plane never leaves the box
-        let clampedX = clamp(rawX, maxOffset: maxOffset)
-        let clampedY = clamp(rawY, maxOffset: maxOffset)
-        
-        let hitEdge = isAtEdge(x: clampedX, y: clampedY, maxOffset: maxOffset)
-        
-        // degrees just for display
-        let pitchDeg = motion.pitch * 180 / .pi
-        let rollDeg  = motion.roll  * 180 / .pi
-        
-        VStack(spacing: 32) {
-            Text("Gyro Demo")
-                .font(.largeTitle)
-                .bold()
+        GeometryReader { geo in
+            let fullWidth = geo.size.width
+            let fullHeight = geo.size.height
             
-            // fixed-height label area
-            ZStack {
-                // "Ding!" when hitting the box
-                Text("Ding!")
-                    .font(.title)
-                    .bold()
-                    .foregroundStyle(.red)
-                    .opacity(hitEdge ? 1 : 0)
-                
-                // degrees when inside
-                VStack(spacing: 8) {
-                    Text(String(format: "Pitch: %.1f°", pitchDeg))
-                    Text(String(format: "Roll:  %.1f°", rollDeg))
-                }
-                .font(.title2)
-                .opacity(hitEdge ? 0 : 1)
-            }
-            .frame(height: 60)
+            // how far the object can travel to each side
+            let maxOffsetWidth = (fullWidth - objectSize) / 2
+            let maxOffsetHeight = (fullHeight - objectSize) / 2
+            
+            // motion → pixel movement mapping
+            let sensitivityX = maxOffsetWidth / maxAngle
+            let sensitivityY = maxOffsetHeight / maxAngle
+            
+            let rawX = motion.roll * sensitivityX
+            let rawY = motion.pitch * sensitivityY
+            
+            let clampedX = clamp(rawX, maxOffset: maxOffsetWidth)
+            let clampedY = clamp(rawY, maxOffset: maxOffsetHeight)
+            
+            let hitEdge = isAtEdge(
+                x: clampedX,
+                y: clampedY,
+                maxOffsetWidth: maxOffsetWidth,
+                maxOffsetHeight: maxOffsetHeight
+            )
+            
+            let centerX = fullWidth / 2
+            let centerY = fullHeight / 2
             
             ZStack {
+                // FULL SCREEN BOX (not tappable)
                 Rectangle()
-                    .frame(width: squareSize, height: squareSize)
-                    .foregroundStyle(hitEdge ? Color.red.opacity(0.3) : Color.gray.opacity(0.1))
+                    .foregroundStyle(hitEdge ? Color.red.opacity(0.2) : Color.gray.opacity(0.1))
                     .border(Color.gray.opacity(0.7), width: 4)
                     .animation(.easeOut(duration: 0.15), value: hitEdge)
-
-                Image(systemName: "airplane")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: ballSize, height: ballSize)
-                    .foregroundStyle(
-                        ballColor(
-                            x: clampedX,
-                            y: clampedY,
-                            maxOffset: maxOffset
-                        )
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)   // 👈 ignore taps on the box
+                
+                // MOVING OBJECT: either airplane or the captured photo
+                Group {
+                    if let img = objectImage {
+                        Image(uiImage: img)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                    } else {
+                        Image(systemName: "airplane")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .rotationEffect(.radians(motion.roll - .pi/2))
+                    }
+                }
+                .frame(width: objectSize, height: objectSize)
+                .foregroundStyle(
+                    ballColor(
+                        x: clampedX,
+                        y: clampedY,
+                        maxOffset: min(maxOffsetWidth, maxOffsetHeight)
                     )
-                    .rotationEffect(.radians(motion.roll - .pi/2))
-                    .offset(x: clampedX, y: clampedY)
-                    .animation(.easeOut(duration: 0.1), value: motion.pitch)
-                    .animation(.easeOut(duration: 0.1), value: motion.roll)
+                )
+                // 👇 actual position on screen
+                .position(x: centerX + clampedX, y: centerY + clampedY)
+                .animation(.easeOut(duration: 0.1), value: motion.pitch)
+                .animation(.easeOut(duration: 0.1), value: motion.roll)
+                .contentShape(Rectangle())      // hit area = 60×60 rect around object
+                .onTapGesture {
+                    showingCamera = true        // 👈 tap ONLY on object opens camera
+                }
+            }
+            .onAppear {
+                loadSound()
+            }
+            .onChange(of: hitEdge) { _, newValue in
+                if newValue {
+                    vibrateOnHit()
+                }
             }
         }
-        .padding()
-        .onAppear {
-            loadSound()
-            // optional: quick test on launch
-            // playHitSound()
-        }
-        .onChange(of: hitEdge) { _, newValue in
-            if newValue {
-                vibrateOnHit()
-            }
+        .sheet(isPresented: $showingCamera) {
+            ImagePicker(image: $objectImage)
         }
     }
 }
 
-// helper: don’t let it go outside the square
+struct ImagePicker: UIViewControllerRepresentable {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var image: UIImage?
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera          // use camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {
+        // nothing to update
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: ImagePicker
+        
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]
+        ) {
+            if let uiImage = info[.originalImage] as? UIImage {
+                parent.image = uiImage
+            }
+            parent.dismiss()
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
+    }
+}
+
+// clamp helper
 private func clamp(_ value: Double, maxOffset: CGFloat) -> CGFloat {
     let v = CGFloat(value)
     return min(max(v, -maxOffset), maxOffset)
