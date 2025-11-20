@@ -11,16 +11,13 @@ struct ContentView: View {
     private let maxAngle: Double = .pi / 9
     
     func ballColor(x: CGFloat, y: CGFloat, maxOffset: CGFloat) -> Color {
-        // distance from center (0...maxOffset)
+        // distance from center
         let distance = sqrt(x*x + y*y)
-        
-        // normalize 0...1
         let t = min(distance / maxOffset, 1)
         
-        // blend from green → red
         return Color(
-            red:   t,          // more red toward edge
-            green: 1 - t,      // less green toward edge
+            red:   t,
+            green: 1 - t,
             blue:  0
         )
     }
@@ -30,23 +27,30 @@ struct ContentView: View {
     }
     
     var body: some View {
-        // max distance from center to edge where the BALL center can go
-        let maxOffset = (squareSize - ballSize) / 2   // e.g. (250 - 60)/2 = 95
+        let maxOffset = (squareSize - ballSize) / 2
         
-        // how many points per radian so that 45° → edge
-        let sensitivity = maxOffset / maxAngle        // ≈ 121
-        let xOffset = motion.roll * sensitivity
-        let yOffset = motion.pitch * sensitivity
-        let hitEdge = isAtEdge(x: CGFloat(xOffset), y: CGFloat(yOffset), maxOffset: maxOffset)
+        // raw offsets from gyro
+        let sensitivity = maxOffset / maxAngle
+        let rawX = motion.roll * sensitivity
+        let rawY = motion.pitch * sensitivity
+        
+        // 👉 CLAMP THEM HERE
+        let clampedX = clamp(rawX, maxOffset: maxOffset)
+        let clampedY = clamp(rawY, maxOffset: maxOffset)
+        
+        let hitEdge = isAtEdge(x: clampedX, y: clampedY, maxOffset: maxOffset)
 
         VStack(spacing: 32) {
             Text("Gyro Demo")
                 .font(.largeTitle)
                 .bold()
             
+            let pitchDeg = motion.pitch * 180 / .pi
+            let rollDeg  = motion.roll  * 180 / .pi
+
             VStack(spacing: 8) {
-                Text(String(format: "Pitch: %.2f", motion.pitch))
-                Text(String(format: "Roll:  %.2f", motion.roll))
+                Text(String(format: "Pitch: %.0f°", pitchDeg))
+                Text(String(format: "Roll:  %.0f°", rollDeg))
             }
             .font(.title2)
             
@@ -55,23 +59,20 @@ struct ContentView: View {
                     .frame(width: squareSize, height: squareSize)
                     .foregroundStyle(hitEdge ? Color.red.opacity(0.3) : Color.gray.opacity(0.1))
                     .animation(.easeOut(duration: 0.15), value: hitEdge)
+                    .border(Color.gray.opacity(0.7), width: 4)
 
                 Circle()
                     .frame(width: ballSize, height: ballSize)
                     .foregroundStyle(
                         ballColor(
-                            x: CGFloat(motion.roll * sensitivity),
-                            y: CGFloat(motion.pitch * sensitivity),
+                            x: clampedX,
+                            y: clampedY,
                             maxOffset: maxOffset
                         )
                     )
-                    .offset(
-                        x: motion.roll * sensitivity,
-                        y: motion.pitch * sensitivity
-                    )
+                    .offset(x: clampedX, y: clampedY)
                     .animation(.easeOut(duration: 0.1), value: motion.pitch)
                     .animation(.easeOut(duration: 0.1), value: motion.roll)
-
             }
         }
         .padding()
