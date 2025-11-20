@@ -51,6 +51,8 @@ struct ContentView: View {
     @State private var spawnCounter: Double = 0
     @State private var hitCount: Int = 0
     @State private var bonusCount: Int = 0
+    @State private var bonusUnlocked = false
+    @State private var spawnedFirstBonus = false
     private let enemyTimer = Timer.publish(every: 0.016, on: .main, in: .common).autoconnect()
     
     // object size
@@ -217,6 +219,10 @@ struct ContentView: View {
                         vibrateOnHit()
                         hitCount += 1
 
+                        if hitCount >= 10 {
+                            bonusUnlocked = true
+                        }
+
                         if e.type == .bonus {
                             bonusCount += 1
                         }
@@ -233,10 +239,15 @@ struct ContentView: View {
                     spawnCounter = 0
                     let xPos = CGFloat.random(in: 20...(fullWidth - 20))
                     let speed = CGFloat.random(in: 2...5)
-                    let shouldSpawnBonus = hitCount >= 10
-                    let enemyType: EnemyType = shouldSpawnBonus && Double.random(in: 0...1) < 0.25 ? .bonus : .standard
+                    let shouldGuaranteeBonus = bonusUnlocked && !spawnedFirstBonus
+                    let shouldSpawnBonus = bonusUnlocked && (shouldGuaranteeBonus || Double.random(in: 0...1) < 0.25)
+                    let enemyType: EnemyType = shouldSpawnBonus ? .bonus : .standard
                     let newEnemy = Enemy(x: xPos, y: -20, speed: speed, type: enemyType)
                     enemies.append(newEnemy)
+
+                    if shouldGuaranteeBonus && enemyType == .bonus {
+                        spawnedFirstBonus = true
+                    }
                 }
             }
         }
