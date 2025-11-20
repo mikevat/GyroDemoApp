@@ -1,6 +1,7 @@
 import SwiftUI
-import UIKit   // 👈 needed for haptics
+import UIKit
 import AudioToolbox
+import AVFoundation
 
 struct ContentView: View {
     @StateObject private var motion = MotionManager()
@@ -14,27 +15,40 @@ struct ContentView: View {
     
     func ballColor(x: CGFloat, y: CGFloat, maxOffset: CGFloat) -> Color {
         let distance = sqrt(x*x + y*y)
-        let t = min(distance / maxOffset, 1)
-        
-        return Color(
-            red:   t,
-            green: 1 - t,
-            blue:  0
-        )
+        let t = min(distance / maxOffset, 1)   // 0 = center, 1 = edge
+
+        let dangerStart: CGFloat = 0.8         // 80% of the way to the edge
+
+        if t < dangerStart {
+            // safely away from the wall → solid green
+            return .green
+        } else {
+            // in the last 20% → fade from green to red
+            let localT = (t - dangerStart) / (1 - dangerStart)   // 0...1 in danger zone
+            return Color(
+                red:   localT,        // goes to 1 at edge
+                green: 1 - localT,    // goes to 0 at edge
+                blue:  0
+            )
+        }
     }
+
 
     func isAtEdge(x: CGFloat, y: CGFloat, maxOffset: CGFloat) -> Bool {
         abs(x) >= maxOffset || abs(y) >= maxOffset
     }
-    
-    // 👇 simple haptic helper
+
     private func vibrateOnHit() {
-        // Heavy haptic
+        // heavy haptic
         let impact = UIImpactFeedbackGenerator(style: .heavy)
         impact.impactOccurred()
         
-        // Sound
-        AudioServicesPlaySystemSound(1520)
+        // activate audio session
+        try? AVAudioSession.sharedInstance().setCategory(.ambient)
+        try? AVAudioSession.sharedInstance().setActive(true)
+
+        // reliable system sound
+        AudioServicesPlaySystemSound(1106)
     }
 
     var body: some View {
