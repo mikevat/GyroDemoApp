@@ -39,16 +39,6 @@ struct ContentView: View {
         abs(x) >= maxOffsetWidth || abs(y) >= maxOffsetHeight
     }
     
-    func ballColor(x: CGFloat, y: CGFloat, maxOffset: CGFloat) -> Color {
-        let distance = sqrt(x*x + y*y)
-        let t = min(distance / maxOffset, 1)
-        
-        if t < 0.9 { return .green }
-        
-        let localT = (t - 0.9) / 0.1
-        return Color(red: localT, green: 1 - localT, blue: 0)
-    }
-    
     private func loadSound() {
         guard let url = Bundle.main.url(forResource: "ep", withExtension: "m4a") else {
             print("⚠️ Could not find ep.m4a in bundle")
@@ -154,13 +144,7 @@ struct ContentView: View {
                     }
                 }
                 .frame(width: objectSize, height: objectSize)
-                .foregroundStyle(
-                    ballColor(
-                        x: clampedX,
-                        y: clampedY,
-                        maxOffset: min(maxOffsetWidth, maxOffsetHeight)
-                    )
-                )
+                .foregroundStyle(.blue)
                 .position(x: centerX + clampedX, y: centerY + clampedY)
                 .animation(.easeOut(duration: 0.1), value: motion.pitch)
                 .animation(.easeOut(duration: 0.1), value: motion.roll)
