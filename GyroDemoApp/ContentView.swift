@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit   // 👈 needed for haptics
 
 struct ContentView: View {
     @StateObject private var motion = MotionManager()
@@ -25,6 +26,12 @@ struct ContentView: View {
         abs(x) >= maxOffset || abs(y) >= maxOffset
     }
     
+    // 👇 simple haptic helper
+    private func vibrateOnHit() {
+        let generator = UIImpactFeedbackGenerator(style: .heavy)
+        generator.impactOccurred()
+    }
+
     var body: some View {
         let maxOffset = (squareSize - ballSize) / 2
         
@@ -48,16 +55,16 @@ struct ContentView: View {
                 .font(.largeTitle)
                 .bold()
             
-            // 🔹 Fixed-height area that swaps between "Ding!" and the degrees
+            // fixed-height label area
             ZStack {
-                // Ding text (shown only when at edge)
+                // "Ding!" when hitting the box
                 Text("Ding!")
                     .font(.title)
                     .bold()
                     .foregroundStyle(.red)
                     .opacity(hitEdge ? 1 : 0)
                 
-                // Degrees text (hidden when at edge)
+                // degrees when inside
                 VStack(spacing: 8) {
                     Text(String(format: "Pitch: %.1f°", pitchDeg))
                     Text(String(format: "Roll:  %.1f°", rollDeg))
@@ -65,7 +72,7 @@ struct ContentView: View {
                 .font(.title2)
                 .opacity(hitEdge ? 0 : 1)
             }
-            .frame(height: 60) // 👈 keeps layout stable, box won’t move
+            .frame(height: 60)
             
             ZStack {
                 Rectangle()
@@ -89,6 +96,12 @@ struct ContentView: View {
             }
         }
         .padding()
+        // 👇 haptic on transition to "hitEdge == true"
+        .onChange(of: hitEdge) { newValue in
+            if newValue {
+                vibrateOnHit()
+            }
+        }
     }
 }
 
