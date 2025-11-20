@@ -13,6 +13,9 @@ struct ContentView: View {
     @State private var objectImage: UIImage? = nil
     @State private var showingCamera = false
     
+    // freeze flag
+    @State private var gameFrozen = false      // 👈 NEW
+    
     // object size
     private let objectSize: CGFloat = 60
     
@@ -86,8 +89,12 @@ struct ContentView: View {
             let sensitivityX = maxOffsetWidth / maxAngle
             let sensitivityY = maxOffsetHeight / maxAngle
             
-            let rawX = motion.roll * sensitivityX
-            let rawY = motion.pitch * sensitivityY
+            // 👇 freeze movement when camera is open
+            let effectiveSensitivityX = gameFrozen ? 0 : sensitivityX
+            let effectiveSensitivityY = gameFrozen ? 0 : sensitivityY
+            
+            let rawX = motion.roll * effectiveSensitivityX
+            let rawY = motion.pitch * effectiveSensitivityY
             
             let clampedX = clamp(rawX, maxOffset: maxOffsetWidth)
             let clampedY = clamp(rawY, maxOffset: maxOffsetHeight)
@@ -143,13 +150,18 @@ struct ContentView: View {
                 loadSound()
             }
             .onChange(of: hitEdge) { _, newValue in
-                if newValue {
+                // 👇 no hit feedback while frozen
+                if newValue && !gameFrozen {
                     vibrateOnHit()
                 }
             }
         }
         .sheet(isPresented: $showingCamera) {
             ImagePicker(image: $objectImage)
+        }
+        // 👇 keep gameFrozen in sync with camera sheet
+        .onChange(of: showingCamera) { _, newValue in
+            gameFrozen = newValue
         }
     }
 }
