@@ -29,7 +29,7 @@ struct ContentView: View {
         
         if t < 0.9 { return .green }
         
-        let localT = (t - 0.8) / 0.2
+        let localT = (t - 0.9) / 0.1
         return Color(red: localT, green: 1 - localT, blue: 0)
     }
     
@@ -80,11 +80,9 @@ struct ContentView: View {
             let fullWidth = geo.size.width
             let fullHeight = geo.size.height
             
-            // how far the object can travel to each side
             let maxOffsetWidth = (fullWidth - objectSize) / 2
             let maxOffsetHeight = (fullHeight - objectSize) / 2
             
-            // motion → pixel movement mapping
             let sensitivityX = maxOffsetWidth / maxAngle
             let sensitivityY = maxOffsetHeight / maxAngle
             
@@ -111,9 +109,9 @@ struct ContentView: View {
                     .border(Color.gray.opacity(0.7), width: 4)
                     .animation(.easeOut(duration: 0.15), value: hitEdge)
                     .ignoresSafeArea()
-                    .allowsHitTesting(false)   // 👈 ignore taps on the box
+                    .allowsHitTesting(false)
                 
-                // MOVING OBJECT: either airplane or the captured photo
+                // VISIBLE OBJECT
                 Group {
                     if let img = objectImage {
                         Image(uiImage: img)
@@ -123,7 +121,7 @@ struct ContentView: View {
                         Image(systemName: "airplane")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .rotationEffect(.radians(motion.roll - .pi/2))
+                            .rotationEffect(.radians(0 - .pi/2))
                     }
                 }
                 .frame(width: objectSize, height: objectSize)
@@ -134,13 +132,11 @@ struct ContentView: View {
                         maxOffset: min(maxOffsetWidth, maxOffsetHeight)
                     )
                 )
-                // 👇 actual position on screen
                 .position(x: centerX + clampedX, y: centerY + clampedY)
                 .animation(.easeOut(duration: 0.1), value: motion.pitch)
                 .animation(.easeOut(duration: 0.1), value: motion.roll)
-                .contentShape(Rectangle())      // hit area = 60×60 rect around object
                 .onTapGesture {
-                    showingCamera = true        // 👈 tap ONLY on object opens camera
+                    showingCamera = true
                 }
             }
             .onAppear {
@@ -158,20 +154,20 @@ struct ContentView: View {
     }
 }
 
+// ImagePicker stays the same as you have it
+
 struct ImagePicker: UIViewControllerRepresentable {
     @Environment(\.dismiss) private var dismiss
     @Binding var image: UIImage?
     
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
-        picker.sourceType = .camera          // use camera
+        picker.sourceType = .camera
         picker.delegate = context.coordinator
         return picker
     }
     
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {
-        // nothing to update
-    }
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
     
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
