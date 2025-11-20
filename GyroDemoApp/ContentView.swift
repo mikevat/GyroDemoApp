@@ -15,6 +15,13 @@ struct Enemy: Identifiable {
     var speed: CGFloat
     var type: EnemyType
 
+    init(x: CGFloat, y: CGFloat, speed: CGFloat, type: EnemyType = .standard) {
+        self.x = x
+        self.y = y
+        self.speed = speed
+        self.type = type
+    }
+
     var color: Color {
         switch type {
         case .standard:
