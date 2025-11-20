@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit   // 👈 needed for haptics
+import AudioToolbox
 
 struct ContentView: View {
     @StateObject private var motion = MotionManager()
@@ -9,7 +10,7 @@ struct ContentView: View {
     private let ballSize: CGFloat = 60
     
     // 45 degrees in radians
-    private let maxAngle: Double = .pi / 9
+    private let maxAngle: Double = .pi / 12
     
     func ballColor(x: CGFloat, y: CGFloat, maxOffset: CGFloat) -> Color {
         let distance = sqrt(x*x + y*y)
@@ -28,8 +29,12 @@ struct ContentView: View {
     
     // 👇 simple haptic helper
     private func vibrateOnHit() {
-        let generator = UIImpactFeedbackGenerator(style: .heavy)
-        generator.impactOccurred()
+        // Heavy haptic
+        let impact = UIImpactFeedbackGenerator(style: .heavy)
+        impact.impactOccurred()
+        
+        // Sound
+        AudioServicesPlaySystemSound(1520)
     }
 
     var body: some View {
@@ -81,7 +86,9 @@ struct ContentView: View {
                     .border(Color.gray.opacity(0.7), width: 4)
                     .animation(.easeOut(duration: 0.15), value: hitEdge)
 
-                Circle()
+                Image(systemName: "airplane")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
                     .frame(width: ballSize, height: ballSize)
                     .foregroundStyle(
                         ballColor(
@@ -90,6 +97,8 @@ struct ContentView: View {
                             maxOffset: maxOffset
                         )
                     )
+                    // optional: tilt the plane with roll
+                    .rotationEffect(.radians(motion.roll - .pi/2))
                     .offset(x: clampedX, y: clampedY)
                     .animation(.easeOut(duration: 0.1), value: motion.pitch)
                     .animation(.easeOut(duration: 0.1), value: motion.roll)
@@ -97,11 +106,10 @@ struct ContentView: View {
         }
         .padding()
         // 👇 haptic on transition to "hitEdge == true"
-        .onChange(of: hitEdge) { newValue in
-            if newValue {
-                vibrateOnHit()
-            }
+        .onChange(of: hitEdge) { _, newValue in
+            if newValue { vibrateOnHit() }
         }
+
     }
 }
 
