@@ -3,11 +3,33 @@ import UIKit
 import AVFoundation
 import Combine
 
+enum EnemyType {
+    case standard
+    case bonus
+}
+
 struct Enemy: Identifiable {
     let id = UUID()
     var x: CGFloat
     var y: CGFloat
     var speed: CGFloat
+    var type: EnemyType
+
+    init(x: CGFloat, y: CGFloat, speed: CGFloat, type: EnemyType = .standard) {
+        self.x = x
+        self.y = y
+        self.speed = speed
+        self.type = type
+    }
+
+    var color: Color {
+        switch type {
+        case .standard:
+            return .red
+        case .bonus:
+            return .yellow
+        }
+    }
 }
 
 struct ContentView: View {
@@ -23,10 +45,12 @@ struct ContentView: View {
     
     // freeze flag
     @State private var gameFrozen = false
-    
+
     // enemies
     @State private var enemies: [Enemy] = []
     @State private var spawnCounter: Double = 0
+    @State private var hitCount: Int = 0
+    @State private var bonusCount: Int = 0
     private let enemyTimer = Timer.publish(every: 0.016, on: .main, in: .common).autoconnect()
     
     // object size
@@ -119,11 +143,23 @@ struct ContentView: View {
                     .border(Color.gray.opacity(0.7), width: 4)
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
-                
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Hits: \(hitCount)", systemImage: "target")
+                        .labelStyle(.titleAndIcon)
+
+                    Label("Bonus: \(bonusCount)", systemImage: "sparkles")
+                        .labelStyle(.titleAndIcon)
+                }
+                .font(.headline)
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .allowsHitTesting(false)
+
                 // ENEMIES (red, falling)
                 ForEach(enemies) { enemy in
                     Circle()
-                        .fill(Color.red)
+                        .fill(enemy.color)
                         .frame(width: 30, height: 30)
                         .position(x: enemy.x, y: enemy.y)
                         .allowsHitTesting(false)
@@ -162,23 +198,44 @@ struct ContentView: View {
             // enemy movement + spawn loop
             .onReceive(enemyTimer) { _ in
                 guard !gameFrozen else { return }
-                
+
+                let playerX = centerX + clampedX
+                let playerY = centerY + clampedY
+
                 // move enemies down
-                enemies = enemies.map { enemy in
+                enemies = enemies.compactMap { enemy in
                     var e = enemy
                     e.y += e.speed
+                    guard e.y < fullHeight + 40 else { return nil }
+
+                    let dx = e.x - playerX
+                    let dy = e.y - playerY
+                    let distance = sqrt(dx * dx + dy * dy)
+                    let collisionDistance = (objectSize / 2) + 15
+
+                    if distance <= collisionDistance {
+                        vibrateOnHit()
+                        hitCount += 1
+
+                        if e.type == .bonus {
+                            bonusCount += 1
+                        }
+
+                        return nil
+                    }
+
                     return e
                 }
-                // remove those off-screen
-                .filter { $0.y < fullHeight + 40 }
-                
+
                 // spawn new enemies every ~0.8s
                 spawnCounter += 0.016
                 if spawnCounter >= 0.8 {
                     spawnCounter = 0
                     let xPos = CGFloat.random(in: 20...(fullWidth - 20))
                     let speed = CGFloat.random(in: 2...5)
-                    let newEnemy = Enemy(x: xPos, y: -20, speed: speed)
+                    let shouldSpawnBonus = hitCount >= 10
+                    let enemyType: EnemyType = shouldSpawnBonus && Double.random(in: 0...1) < 0.25 ? .bonus : .standard
+                    let newEnemy = Enemy(x: xPos, y: -20, speed: speed, type: enemyType)
                     enemies.append(newEnemy)
                 }
             }
